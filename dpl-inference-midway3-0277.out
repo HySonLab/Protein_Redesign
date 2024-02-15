@@ -1,0 +1,15 @@
+Global seed set to 1234
+Using cache found in /home/ndn/.cache/torch/hub/facebookresearch_esm_main
+Using cache found in /home/ndn/.cache/torch/hub/facebookresearch_esm_main
+Using cache found in /home/ndn/.cache/torch/hub/facebookresearch_esm_main
+Using cache found in /home/ndn/.cache/torch/hub/facebookresearch_esm_main
+/scratch/midway3/ndn/dpl/lib/python3.9/site-packages/pytorch_lightning/trainer/connectors/accelerator_connector.py:447: LightningDeprecationWarning: Setting `Trainer(gpus=1)` is deprecated in v1.7 and will be removed in v2.0. Please use `Trainer(accelerator='gpu', devices=1)` instead.
+  rank_zero_deprecation(
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Predicting: 0it [00:00, ?it/s]Predicting:   0%|          | 0/8 [00:00<?, ?it/s]Predicting DataLoader 0:   0%|          | 0/8 [00:00<?, ?it/s]Predicting DataLoader 0:  12%|█▎        | 1/8 [00:21<02:30, 21.51s/it]Predicting DataLoader 0:  25%|██▌       | 2/8 [00:43<02:09, 21.50s/it]Predicting DataLoader 0:  38%|███▊      | 3/8 [01:38<02:43, 32.71s/it]Predicting DataLoader 0:  50%|█████     | 4/8 [02:33<02:33, 38.31s/it]Predicting DataLoader 0:  62%|██████▎   | 5/8 [03:28<02:05, 41.68s/it]Predicting DataLoader 0:  75%|███████▌  | 6/8 [04:23<01:27, 43.92s/it]Predicting DataLoader 0:  88%|████████▊ | 7/8 [04:38<00:39, 39.72s/it]Predicting DataLoader 0: 100%|██████████| 8/8 [04:52<00:00, 36.56s/it]Predicting DataLoader 0: 100%|██████████| 8/8 [04:52<00:00, 36.57s/it]/scratch/beagle3/ndn/ProteinReDiffRepo/test/predict_batch_seq.py:99: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  tokens = torch.argmax(torch.softmax((torch.tensor(proba)), dim = -1), dim = -1)
+
