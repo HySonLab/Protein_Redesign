@@ -9,9 +9,9 @@ Contributors:
 Clone this repository and install dependencies:
 ```bash
 git clone https://github.com/HySonLab/Protein_Redesign.git
-cd ProteinReDiff
+cd Protein_Redesign
 conda env create -f environment.yml
-conda activate dpl
+conda activate ProteinReDiff
 ```
 
 Download model parameters:
@@ -29,22 +29,22 @@ export PATH="/path/to/TMalign:$PATH"
 ```
 
 ## Sample generation
-Generate complex structures with the protein structure-free model (DPL):
+Generate complex structures with the protein structure-free model (ProteinReDiff):
 ```bash
 python generate.py \
-    --ckpt_path "checkpoints/DPL_v1.ckpt" \
-    --output_dir "workdir/generate/example_DPL" \
+    --ckpt_path "checkpoints/ProteinReDiff_v1.ckpt" \
+    --output_dir "workdir/generate/example_ProteinReDiff" \
     --protein "LSEQLKHCNGILKELLSKKHAAYAWPFYKPVDASALGLHDYHDIIKHPMDLSTVKRKMENRDYRDAQEFAADVRLMFSNCYKYNPPDHDVVAMARKLQDVFEFRYAKMPD" \
     --ligand "Cc1ccc2c(c1c3cc(cc4c3nc([nH]4)C5CC5)c6c(noc6C)C)cccn2" \
     --num_samples 8
 ```
 
-Alternatively, the protein structure-dependent model (DPL+S) can be used:
+Alternatively, the protein structure-dependent model (ProteinReDiff+S) can be used:
 ```bash
 wget https://files.rcsb.org/download/6MOA.pdb
 python generate.py \
-    --ckpt_path "checkpoints/DPLS_v1.ckpt" \
-    --output_dir "workdir/generate/example_DPLS" \
+    --ckpt_path "checkpoints/ProteinReDiffS_v1.ckpt" \
+    --output_dir "workdir/generate/example_ProteinReDiffS" \
     --protein "6MOA.pdb" \
     --ligand "Cc1ccc2c(c1c3cc(cc4c3nc([nH]4)C5CC5)c6c(noc6C)C)cccn2" \
     --num_samples 8
@@ -54,8 +54,8 @@ Note that an input protein structure must be given as a PDB file in this case.
 Besides, you can specify a reference protein structure to be used for the alignment of results:
 ```bash
 python generate.py \
-    --ckpt_path "checkpoints/DPL_v1.ckpt" \
-    --output_dir "workdir/generate/example_DPL_ref" \
+    --ckpt_path "checkpoints/ProteinReDiff_v1.ckpt" \
+    --output_dir "workdir/generate/example_ProteinReDiff_ref" \
     --protein "LSEQLKHCNGILKELLSKKHAAYAWPFYKPVDASALGLHDYHDIIKHPMDLSTVKRKMENRDYRDAQEFAADVRLMFSNCYKYNPPDHDVVAMARKLQDVFEFRYAKMPD" \
     --ligand "Cc1ccc2c(c1c3cc(cc4c3nc([nH]4)C5CC5)c6c(noc6C)C)cccn2" \
     --num_samples 8 \
@@ -66,8 +66,8 @@ This is used only for alignment and does not affect the generation process itsel
 The argument num_steps can be modified from the default of 64 to reduce execution time:
 ```bash
 python generate.py \
-    --ckpt_path "checkpoints/DPL_v1.ckpt" \
-    --output_dir "workdir/generate/example_DPL_fast" \
+    --ckpt_path "checkpoints/ProteinReDiff_v1.ckpt" \
+    --output_dir "workdir/generate/example_ProteinReDiff_fast" \
     --protein "LSEQLKHCNGILKELLSKKHAAYAWPFYKPVDASALGLHDYHDIIKHPMDLSTVKRKMENRDYRDAQEFAADVRLMFSNCYKYNPPDHDVVAMARKLQDVFEFRYAKMPD" \
     --ligand "Cc1ccc2c(c1c3cc(cc4c3nc([nH]4)C5CC5)c6c(noc6C)C)cccn2" \
     --num_samples 8 \
@@ -93,7 +93,7 @@ python train.py \
     --batch_size 1 \
     --accumulate_grad_batches 8 \
     --no_cb_distogram \
-    --save_dir "workdir/train/example_DPL" \
+    --save_dir "workdir/train/example_ProteinReDiff" \
     --single_dim 256 \
     --pair_dim 32 \
     --num_blocks 4
@@ -109,5 +109,5 @@ python train.py \
     --batch_size 3 \
     --accumulate_grad_batches 8 \
     --no_cb_distogram \
-    --save_dir "workdir/train/reproduce_DPL"
+    --save_dir "workdir/train/reproduce_ProteinReDiff"
 ```

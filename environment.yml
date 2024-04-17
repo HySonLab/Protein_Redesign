@@ -1,4 +1,4 @@
-name: dpl
+name: ProteinReDiff
 channels:
   - conda-forge
   - pytorch
