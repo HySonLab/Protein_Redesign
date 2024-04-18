@@ -1,10 +1,28 @@
+# This file is adopted from DeepMind Technologies Limited.
+#
+# Copyright 2021 DeepMind Technologies Limited
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# The Modules are adapted from Pytorch implementation of AF2 from
+# OpenFold from https://github.com/aqlaboratory/openfold
+
 import math
 
 import torch
 import torch.nn as nn
 from scipy.stats import truncnorm
 import numpy as np
-# from .attention_core import attention_core
 from typing import Optional, Callable, List, Tuple, Sequence
 
 DEFAULT_LMA_Q_CHUNK_SIZE=1024
@@ -384,20 +402,13 @@ class SPAttention(nn.Module):
 
         self.layer_norm_m = LayerNorm(self.c_in)
         
-        # self.layer_norm_z = None
-        # self.linear_z = None
         if self.pair_bias:
-            self.linear_z = nn.Sequential( ## (NN)
+            self.linear_z = nn.Sequential(
                 LayerNorm(self.c_z),
                 Linear(
                 self.c_z, self.no_heads, bias=False, init="normal"
             )
             )
-            # self.linear_z_rev = nn.Sequential(
-            #     LayerNorm(self.no_heads),
-            #     Linear(
-            #     self.no_heads, self.c_z, bias=False, init="normal"
-            # ))
         
         self.mha = Attention(
             self.c_in, 
@@ -440,123 +451,27 @@ class SPAttention(nn.Module):
             # self.layer_norm_z is not None and       # benefit of
             self.linear_z is not None               # TorchScript
         ):
-            chunks = []
-
-            # for i in range(0, z.shape[-3], 128): ## (NN)
-            #     z_chunk = z[..., i: i + 128, :, :]
-
-            #     # [*, N_res, N_res, C_z]
-            #     z_chunk = self.layer_norm_z(z_chunk)
+            z = self.linear_z(z)
             
-            #     # [*, N_res, N_res, no_heads]
-            #     z_chunk = self.linear_z(z_chunk)
-
-            #     chunks.append(z_chunk)
-
-            # z = torch.cat(chunks, dim=-3)#.mean(0)
-
-            # z = z + self.layer_norm_z(z)
-            z = self.linear_z(z)#.mean(0)
-            
-            # b_ij^h [*, 1, no_heads, N_res, N_res]
-            # z = permute_final_dims(z, (2, 0, 1)).unsqueeze(-4)
 
             # mask_bias [*, N_seq, 1, 1, N_res] 
             # b_ij^h [*, N_seq, no_heads, N_res, N_res]
             z = permute_final_dims(z, (0, 3, 1, 2))
 
-        biases = [] #[mask_bias] ## (NN)
+        biases = [] 
         if(z is not None):
             biases.append(z)
                 
-        m = self.layer_norm_m(m) ## (NN)
-        m = m + self.mha( ## (NN)
+        m = self.layer_norm_m(m) 
+        m = m + self.mha(
             q_x=m, 
             kv_x=m, 
             biases=biases
         )
 
-        #reverse
-        # z = permute_final_dims(z, (0, 2, 3, 1))
-        # z = self.linear_z_rev(z)
+        
         return m
             
-            
-class OuterProductMean(nn.Module):
-    """
-    Implements Algorithm 10.
-    """
-
-    def __init__(self, c_m, c_z, c_hidden, eps=1e-3):
-        """
-        Args:
-            c_m:
-                MSA embedding channel dimension
-            c_z:
-                Pair embedding channel dimension
-            c_hidden:
-                Hidden channel dimension
-        """
-        super(OuterProductMean, self).__init__()
-
-        self.c_m = c_m
-        self.c_z = c_z
-        self.c_hidden = c_hidden
-        self.eps = eps
-
-        self.layer_norm = nn.LayerNorm(c_m)
-        self.linear_1 = Linear(c_m, c_hidden)
-        self.linear_2 = Linear(c_m, c_hidden)
-        self.linear_out = Linear(c_hidden ** 2, c_z, init="final")
-        
-    def forward(self, 
-        m: torch.Tensor, 
-        mask: Optional[torch.Tensor] = None):
-        """
-        Args:
-            m:
-                [*, N_seq, N_res, C_m] Single representation embedding
-            mask:
-                [*, N_seq, N_res] Single representation mask
-        Returns:
-            [*, N_res, N_res, C_z] pair embedding update
-        """
-        if mask is None:
-            mask = m.new_ones(m.shape[:-1])
-
-        # [*, N_seq, N_res, C_m]
-        ln = self.layer_norm(m)
-
-        # [*, N_seq, N_res, C]
-        mask = mask.unsqueeze(-1)
-        a = self.linear_1(ln) 
-        a = a * mask
-        
-        b = self.linear_2(ln) 
-        b = b * mask
-
-        del ln
-
-        a = a.transpose(-2, -3)
-        b = b.transpose(-2, -3)
-
-        # [*, N_res, N_res, C, C]
-        outer = torch.einsum("...bac,...dae->...bdce", a, b)
-
-        # [*, N_res, N_res, C * C]
-        outer = outer.reshape(outer.shape[:-2] + (-1,))
-
-        # [*, N_res, N_res, C_z]
-        outer = self.linear_out(outer)
-
-        # [*, N_res, N_res, 1]
-        norm = torch.einsum("...abc,...adc->...bdc", mask, mask)
-        norm = norm + self.eps
-
-        # [*, N_res, N_res, C_z]
-        outer = outer / norm
-
-        return outer
     
 class OuterProductUpdate(nn.Module):
     """
@@ -613,22 +528,14 @@ class OuterProductUpdate(nn.Module):
 
         del ln
 
-        # a = a.transpose(-2, -3)
-        # b = b.transpose(-2, -3)
-
         # [*, N_res, N_res, C, C]
-        # outer = torch.einsum("...bac,...dae->...bdce", a, b)
-        # outer = torch.einsum("...abc,...ade->...abdce", a, b)
         outer = torch.einsum("...abc, ...adc->...abdc", a,b)
 
-        # [*, N_res, N_res, C * C]
-        # outer = outer.reshape(outer.shape[:-2] + (-1,))
 
         # [*, N_res, N_res, C_z]
         outer = self.linear_out(outer)
 
         # [*, N_res, N_res, 1]
-        # norm = torch.einsum("...abc,...adc->...bdc", mask, mask)
         norm = torch.einsum("...abc,...adc->...abdc", mask, mask)
         norm = norm + self.eps
 
@@ -637,84 +544,7 @@ class OuterProductUpdate(nn.Module):
 
         return outer
 
-class OuterProductMeanModified(nn.Module):
-    """
-    Implements Algorithm 10.
-    """
 
-    def __init__(self, c_m, c_z, c_hidden, eps=1e-3):
-        """
-        Args:
-            c_m:
-                MSA embedding channel dimension
-            c_z:
-                Pair embedding channel dimension
-            c_hidden:
-                Hidden channel dimension
-        """
-        super().__init__()
-
-        self.c_m = c_m
-        self.c_z = c_z
-        self.c_hidden = c_hidden
-        self.eps = eps
-
-        self.layer_norm = nn.LayerNorm(c_m)
-        self.linear_1 = Linear(c_m, c_hidden)
-        self.linear_2 = Linear(c_m, c_hidden)
-        self.linear_out = Linear(c_hidden**2, c_z, init="final")
-        
-    def forward(self, 
-        m: torch.Tensor, 
-        mask: Optional[torch.Tensor] = None):
-        """
-        Args:
-            m:
-                [*, N_seq, N_res, C_m] Single representation embedding
-            mask:
-                [*, N_seq, N_res] Single representation mask
-        Returns:
-            [*, N_res, N_res, C_z] pair embedding update
-        """
-        if mask is None:
-            mask = m.new_ones(m.shape[:-1])
-
-        # [*, N_seq, N_res, C_m]
-        ln = self.layer_norm(m)
-
-        # [*, N_seq, N_res, C]
-        mask = mask.unsqueeze(-1)
-        a = self.linear_1(ln) 
-        a = a * mask
-        
-        b = self.linear_2(ln) 
-        b = b * mask
-
-        del ln
-
-        # a = a.transpose(-2, -3)
-        # b = b.transpose(-2, -3)
-
-        # [*, N_res, N_res, C, C]
-        # outer = torch.einsum("...bac,...dae->...bdce", a, b)
-        outer = torch.einsum("...abc,...ade->...abdce", a, b)
-        # outer = torch.einsum("...abc, ...adc->...abdc", a,b)
-
-        # [*, N_res, N_res, C * C]
-        outer = outer.reshape(outer.shape[:-2] + (-1,))
-
-        # [*, N_res, N_res, C_z]
-        outer = self.linear_out(outer)
-
-        # [*, N_res, N_res, 1]
-        # norm = torch.einsum("...abc,...adc->...bdc", mask, mask)
-        norm = torch.einsum("...abc,...adc->...abdc", mask, mask)
-        norm = norm + self.eps
-
-        # [*, N_res, N_res, C_z]
-        outer = outer / norm
-
-        return outer
         
         
 def _lma(

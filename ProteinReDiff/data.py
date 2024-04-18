@@ -1,4 +1,12 @@
-#### CITE
+"""
+Adapted from Nakata, S., Mori, Y. & Tanaka, S. 
+End-to-end protein–ligand complex structure generation with diffusion-based generative models.
+BMC Bioinformatics 24, 233 (2023).
+https://doi.org/10.1186/s12859-023-05354-5
+
+Repository: https://github.com/shuyana/DiffusionProteinLigand
+"""
+
 from pathlib import Path
 from typing import Any, List, Mapping, Optional, Sequence, Union
 from itertools import cycle, islice
@@ -15,7 +23,7 @@ from .features import ALLOWABLE_BOND_FEATURES, featurize_atom, featurize_bond
 from .mol import get_mol_positions
 from .protein import Protein, protein_to_ca_mol
 
-from .dev import spatial_mask ### (NN)
+from .dev import spatial_mask 
 
 
 def ligand_to_data(ligand: Chem.Mol, **kwargs: Any) -> Mapping[str, Any]:
@@ -113,7 +121,7 @@ def collate_fn(data_list: Sequence[Mapping[str, Any]]) -> Mapping[str, Any]:
         else:
             batch[k] = default_collate([data[k] for data in data_list])
 
-    ### (NN): Adding spatial masking
+    ### Adding spatial masking
     # if "residue_spatial_mask" not in data_list[0]:
     #     feat_pad = (0, 0) * (data_list[0]["residue_mask"].dim() - 1)
     #     batch["residue_spatial_mask"] = default_collate(
@@ -190,7 +198,6 @@ class CombinedDataset(IterableDataset):
         for pdb_id in tqdm(self.pdb_ids):
             ligand_data = torch.load(self.root_dir / pdb_id / "ligand_data.pt")
             protein_data = torch.load(self.root_dir / pdb_id / "protein_data.pt")
-            # if (protein_data['num_residues'] + ligand_data["num_atoms"]) <=400:
             yield {"pdb_id": pdb_id, **ligand_data, **protein_data}
     def get_stream(self):
         return cycle(self.load_data())
@@ -214,20 +221,20 @@ class PDBbindDataModule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None) -> None:
         self.train_pdb_ids: List[str] = []
-        with open(self.data_dir / "nn_short_train_pdb_ids", "r") as f:
+        with open(self.data_dir / "PRD_train_pdb_ids", "r") as f:
             self.train_pdb_ids.extend(line.strip() for line in f.readlines())
         self.val_pdb_ids: List[str] = []
-        with open(self.data_dir / "val_pdb_ids", "r") as f:
+        with open(self.data_dir / "PRD_val_pdb_ids", "r") as f:
             self.val_pdb_ids.extend(line.strip() for line in f.readlines())
         self.test_pdb_ids: List[str] = []
-        with open(self.data_dir / "nn_test_pdb_ids", "r") as f:
+        with open(self.data_dir / "PRD_test_pdb_ids", "r") as f:
             self.test_pdb_ids.extend(line.strip() for line in f.readlines())
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(
             PDBbindDataset(self.cache_dir, self.train_pdb_ids),
             batch_size=self.batch_size,
-            shuffle=True, ## (NN)
+            shuffle=True,
             num_workers=self.num_workers,
             collate_fn=collate_fn,
             # prefetch_factor = 500,

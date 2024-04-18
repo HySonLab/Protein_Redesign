@@ -3,9 +3,25 @@
 ![Equivariant-Diffusion](Equivariant-Diffusion.png)
 
 Contributors:
-* Nhan Nguyen
-* Duy Nguyen
-* Truong Son Hy (Correspondent / PI)
+* Nhan Nguyen 
+* Duy Nguyen 
+* Truong Son Hy (Correspondent / PI) 
+
+**The architecture of the code draws inspiration from DPL (Diffusion model for Protein–Ligand complexes) developed by Nakata, S., Mori, Y. & Tanaka, S. End-to-end protein–ligand complex structure generation with diffusion-based generative models. BMC Bioinformatics 24, 233 (2023). https://doi.org/10.1186/s12859-023-05354-5**
+
+The main functionalities from DPL include, but not limited to:
+- Featurization of ligand SMILES
+- SE3 equivariant denoising (Triangular Multiplicative Updates)
+- Training process and generation scripts
+
+The main innovations we made away from DPL, but not limited to:
+- Stochastically masking & featurization of protein sequences
+- Adaptations of Single Representation Attention and Outer Product Mean from AF2
+- Parameterization of \beta_T diffusion (instead of using variational lower bound in DPL)
+- Denoising through both sequence and structure spaces
+- Flexible generation output (sequences only, sequence-structures)
+
+
 
 ## Setup Environment
 Clone this repository and install dependencies:
@@ -113,3 +129,13 @@ python train.py \
     --no_cb_distogram \
     --save_dir "workdir/train/reproduce_ProteinReDiff"
 ```
+
+## Acknowledgements
+
+This work is primarily based on the following repositories:
+
+- https://github.com/shuyana/DiffusionProteinLigand (modules, training, inference scripts)
+- https://github.com/aqlaboratory/openfold (AF2 modules)
+- https://github.com/deepmind/alphafold (AF2 modules, protein sequence procesing)
+- https://github.com/facebookresearch/esm (protein featurization)
+- https://github.com/HannesStark/EquiBind (partitions of train/validation/test sets)

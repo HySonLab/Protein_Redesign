@@ -1,3 +1,6 @@
+# Beta parameter diffusion scheduler
+# Adapted from https://github.com/aqlaboratory/genie
+
 import math
 import torch
 
