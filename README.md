@@ -1,5 +1,7 @@
 # Complex-based Ligand-Binding Proteins Redesign by Equivariant Diffusion-based Generative Models
 
+![Equivariant-Diffusion](Equivariant-Diffusion.png)
+
 Contributors:
 * Nhan Nguyen
 * Duy Nguyen
