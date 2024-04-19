@@ -7,9 +7,9 @@ import torch
 from rdkit import rdBase
 from tqdm import tqdm
 
-from dpl.data import ligand_to_data, protein_to_data
-from dpl.mol import mol_from_file
-from dpl.protein import RESIDUE_TYPES, protein_from_pdb_file
+from ProteinReDiff.data import ligand_to_data, protein_to_data
+from ProteinReDiff.mol import mol_from_file
+from ProteinReDiff.protein import RESIDUE_TYPES, protein_from_pdb_file
 
 
 def main(args):

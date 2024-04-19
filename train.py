@@ -8,8 +8,8 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
-from dpl.data import PDBbindDataModule
-from dpl.model import DiffusionModel
+from ProteinReDiff.data import PDBbindDataModule
+from ProteinReDiff.model import DiffusionModel
 
 
 

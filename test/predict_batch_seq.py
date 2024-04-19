@@ -13,10 +13,10 @@ import torch
 from rdkit import Chem
 from torch.utils.data import DataLoader
 
-from dpl.data import InferenceDataset, collate_fn, ligand_to_data, protein_to_data
-from dpl.model import ProteinReDiffModel ## (NN)
-from dpl.mol import get_mol_positions, mol_from_file, update_mol_positions
-from dpl.protein import (
+from ProteinReDiff.data import InferenceDataset, collate_fn, ligand_to_data, protein_to_data
+from ProteinReDiff.model import ProteinReDiffModel ## (NN)
+from ProteinReDiff.mol import get_mol_positions, mol_from_file, update_mol_positions
+from ProteinReDiff.protein import (
     RESIDUE_TYPES,
     RESIDUE_TYPE_INDEX,
     Protein,
@@ -24,7 +24,7 @@ from dpl.protein import (
     protein_from_sequence,
     proteins_to_pdb_file,
 )
-from dpl.tmalign import run_tmalign
+from ProteinReDiff.tmalign import run_tmalign
 
 RESIDUE_TYPES_MASK = RESIDUE_TYPES + ["<mask>"]
 def compute_residue_esm(protein: Protein) -> torch.Tensor:

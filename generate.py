@@ -13,17 +13,17 @@ import torch
 from rdkit import Chem
 from torch.utils.data import DataLoader
 
-from dpl.data import RepeatDataset, collate_fn, ligand_to_data, protein_to_data
-from dpl.model import ProteinReDiffModel
-from dpl.mol import get_mol_positions, mol_from_file, update_mol_positions
-from dpl.protein import (
+from ProteinReDiff.data import RepeatDataset, collate_fn, ligand_to_data, protein_to_data
+from ProteinReDiff.model import ProteinReDiffModel
+from ProteinReDiff.mol import get_mol_positions, mol_from_file, update_mol_positions
+from ProteinReDiff.protein import (
     RESIDUE_TYPES,
     Protein,
     protein_from_pdb_file,
     protein_from_sequence,
     proteins_to_pdb_file,
 )
-from dpl.tmalign import run_tmalign
+from ProteinReDiff.tmalign import run_tmalign
 
 
 def compute_residue_esm(protein: Protein) -> torch.Tensor:
