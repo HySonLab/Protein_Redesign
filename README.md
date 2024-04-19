@@ -34,7 +34,7 @@ conda activate ProteinReDiff
 
 Download model parameters:
 ```bash
-gdown --fuzzy --folder https://drive.google.com/drive/u/1/folders/1AAJ4P5EmQtwle9_eSeNMcF-KMWObksxZ
+gdown --fuzzy --folder https://drive.google.com/drive/folders/1rPlzMUPgKLFd_Krk8cGqhEeitWByPOMn?usp=sharing
 ```
 
 Additionally, TMalign is required to align generated structures.
@@ -47,50 +47,70 @@ export PATH="/path/to/TMalign:$PATH"
 ```
 
 ## Sample generation
-Generate complex structures with the protein structure-free model (ProteinReDiff):
+
+Generate single complex structure using ProteinReDiff:
+
 ```bash
 python generate.py \
-    --ckpt_path "checkpoints/ProteinReDiff_v1.ckpt" \
-    --output_dir "workdir/generate/example_ProteinReDiff" \
+    --ckpt_path "checkpoints/PRD_ver1.ckpt"\
+    --output_dir "workdir/inference/example_ProteinReDiff" \
     --protein "LSEQLKHCNGILKELLSKKHAAYAWPFYKPVDASALGLHDYHDIIKHPMDLSTVKRKMENRDYRDAQEFAADVRLMFSNCYKYNPPDHDVVAMARKLQDVFEFRYAKMPD" \
     --ligand "Cc1ccc2c(c1c3cc(cc4c3nc([nH]4)C5CC5)c6c(noc6C)C)cccn2" \
-    --num_samples 8
+    --num_samples 3 \
+    --num_steps 1000
 ```
 
-Alternatively, the protein structure-dependent model (ProteinReDiff+S) can be used:
+The sequence can be masked prior to input using `X` token (`mask_prob` is the fraction of input protein residues to be masked from 0.0 to 1.0):
 ```bash
-wget https://files.rcsb.org/download/6MOA.pdb
 python generate.py \
-    --ckpt_path "checkpoints/ProteinReDiffS_v1.ckpt" \
-    --output_dir "workdir/generate/example_ProteinReDiffS" \
-    --protein "6MOA.pdb" \
+    --ckpt_path "checkpoints/PRD_ver1.ckpt"\
+    --output_dir "workdir/inference/example_ProteinReDiff" \
+    --protein "LSEQXXXXNGILKELLSKXXXXYAWPFYKPVDASALGLHDYHDIIKXXXXLSTVKRKMENRDYRDXXXXAADVRLMFSNCYKYNPPDHDVVAMARKLQDVFEFRYAKMPD" \
     --ligand "Cc1ccc2c(c1c3cc(cc4c3nc([nH]4)C5CC5)c6c(noc6C)C)cccn2" \
-    --num_samples 8
+    --num_samples 4 \
+    --num_steps 1000 \
+    --mask_prob 0.0
 ```
-Note that an input protein structure must be given as a PDB file in this case.
 
-Besides, you can specify a reference protein structure to be used for the alignment of results:
+Generate structure ensembles without ligand (use the dummy token `*`):
 ```bash
 python generate.py \
-    --ckpt_path "checkpoints/ProteinReDiff_v1.ckpt" \
-    --output_dir "workdir/generate/example_ProteinReDiff_ref" \
+    --ckpt_path "checkpoints/PRD_ver1.ckpt"\
+    --output_dir "workdir/inference/example_ProteinReDiff" \
     --protein "LSEQLKHCNGILKELLSKKHAAYAWPFYKPVDASALGLHDYHDIIKHPMDLSTVKRKMENRDYRDAQEFAADVRLMFSNCYKYNPPDHDVVAMARKLQDVFEFRYAKMPD" \
-    --ligand "Cc1ccc2c(c1c3cc(cc4c3nc([nH]4)C5CC5)c6c(noc6C)C)cccn2" \
-    --num_samples 8 \
-    --ref_path "6MOA.pdb"
+    --ligand "*" \
+    --num_samples 3 \
+    --num_steps 1000
 ```
-This is used only for alignment and does not affect the generation process itself.
 
-The argument num_steps can be modified from the default of 64 to reduce execution time:
+Generate multiple complex structures:
 ```bash
-python generate.py \
-    --ckpt_path "checkpoints/ProteinReDiff_v1.ckpt" \
-    --output_dir "workdir/generate/example_ProteinReDiff_fast" \
-    --protein "LSEQLKHCNGILKELLSKKHAAYAWPFYKPVDASALGLHDYHDIIKHPMDLSTVKRKMENRDYRDAQEFAADVRLMFSNCYKYNPPDHDVVAMARKLQDVFEFRYAKMPD" \
-    --ligand "Cc1ccc2c(c1c3cc(cc4c3nc([nH]4)C5CC5)c6c(noc6C)C)cccn2" \
-    --num_samples 8 \
-    --ref_path "6MOA.pdb" \
-    --num_steps 24
+python -m scripts.predict_batch_strc_msk_inp \
+  --ckpt_path "checkpoints/PRD_ver1.ckpt" \
+  --output_dir "workdir/inference/example_ProteinReDiff" \
+  --fasta "./scripts/test_sequences_from_pdb.fasta" \
+  --ligand_file './scripts/scripts.smiles' \
+  --accelerator "gpu"\
+  --num_gpus 1 \
+  --batch_size 1 \
+  --num_samples 1 \
+  --mask_prob 0.5 \
+  --num_steps 1000
+  ```
+
+Alternatively, generate multiple samples per sequences only (`mask_prob` can be adjusted to increase diversity, best sequences are masked below 0.5):
+```bash
+python -m scripts.predict_batch_seq_msk_inp \
+  --ckpt_path "checkpoints/PRD_ver1.ckpt" \
+  --output_dir "workdir/inference/example_ProteinReDiff" \
+  --fasta "./scripts/test_sequences_from_pdb.fasta" \
+  --ligand_file './scripts/test_pdb.smiles' \
+  --accelerator "gpu"\
+  --num_gpus 1 \
+  --batch_size 1 \
+  --num_samples 10 \
+  --mask_prob 0.3 \
+  --num_steps 1000
 ```
 
 ## Training
@@ -110,7 +130,6 @@ python train.py \
     --num_workers 8 \
     --batch_size 1 \
     --accumulate_grad_batches 8 \
-    --no_cb_distogram \
     --save_dir "workdir/train/example_ProteinReDiff" \
     --single_dim 256 \
     --pair_dim 32 \
@@ -121,13 +140,37 @@ where the no_cb_distogram argument makes the model protein structure-free.
 Please modify the batch_size and accumulate_grad_batches arguments according to your machine(s).
 
 Default values can be used to reproduce the settings used in our paper:
-```
+
+```bash
 python train.py \
-    --num_workers 8 \
-    --batch_size 3 \
+    --training_mode \
+    --num_gpus 1\
+    --num_workers 30 \
+    --batch_size 2 \
+    --accumulate_grad_batches 10 \
+    --save_dir "workdir/train/example_ProteinReDiff" \
+    --single_dim 512 \
+    --mask_prob 0.15 \
+    --pair_dim 64 \
+    --num_steps 2000 \
+    --num_blocks 4
+```
+Due to the limitation of runtime on GPUs, we prepared a `train_from_ckpt.py` script to further train on finished epoch:
+
+```bash
+python train_from_ckpt.py \
+    --training_mode \
+    --num_gpus 1\
+    --num_workers 30 \
+    --batch_size 2 \
     --accumulate_grad_batches 8 \
-    --no_cb_distogram \
-    --save_dir "workdir/train/reproduce_ProteinReDiff"
+    --save_dir "$save_dir" \
+    --single_dim 512 \
+    --mask_prob 0.15 \
+    --pair_dim 64 \
+    --num_steps 1000 \
+    --num_blocks 4 \
+    --trained_ckpt "checkpoints/PRD_ver1.ckpt"
 ```
 
 ## Acknowledgements
