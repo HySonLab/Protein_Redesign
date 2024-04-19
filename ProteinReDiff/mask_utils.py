@@ -19,7 +19,6 @@ class SpatialMaskingModule(nn.Module):
                 inf = 1e10
                 ):
         super().__init__()
-        # self.max_p = max_p
         self.inf = inf
     
     

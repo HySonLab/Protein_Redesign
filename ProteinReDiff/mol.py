@@ -1,3 +1,20 @@
+"""
+Adapted from Nakata, S., Mori, Y. & Tanaka, S. 
+End-to-end protein–ligand complex structure generation with diffusion-based generative models.
+BMC Bioinformatics 24, 233 (2023).
+https://doi.org/10.1186/s12859-023-05354-5
+
+Repository: https://github.com/shuyana/DiffusionProteinLigand
+
+ProteinReDiff includes significant innovations including:
+- Stochastically masking & featurization of protein sequences
+- Adaptations of Single Representation Attention and Outer Product Mean from AF2
+- Parameterization of \beta_T diffusion (instead of using variational lower bound in DPL)
+- Denoising through both sequence and structure spaces
+- Flexible generation output (sequences only, sequence-structures)
+
+"""
+
 import copy
 from pathlib import Path
 from typing import Union

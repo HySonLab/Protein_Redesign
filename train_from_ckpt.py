@@ -1,3 +1,11 @@
+"""
+Adapted from Nakata, S., Mori, Y. & Tanaka, S. 
+End-to-end protein–ligand complex structure generation with diffusion-based generative models.
+BMC Bioinformatics 24, 233 (2023).
+https://doi.org/10.1186/s12859-023-05354-5
+
+Repository: https://github.com/shuyana/DiffusionProteinLigand
+"""
 import os
 import warnings
 from argparse import ArgumentParser
@@ -10,9 +18,6 @@ from pytorch_lightning.loggers import WandbLogger
 from ProteinReDiff.data import PDBbindDataModule
 from ProteinReDiff.model import DiffusionModel
 
-# import wandb
-# wandb.login(key="08bf4af1072e57396f586c95fa2ea56a9c0a1681")
-# wandb.init()
 
 
 def main(args):

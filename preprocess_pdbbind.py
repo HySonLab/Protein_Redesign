@@ -1,3 +1,13 @@
+"""
+Adapted from Nakata, S., Mori, Y. & Tanaka, S. 
+End-to-end protein–ligand complex structure generation with diffusion-based generative models.
+BMC Bioinformatics 24, 233 (2023).
+https://doi.org/10.1186/s12859-023-05354-5
+
+Repository: https://github.com/shuyana/DiffusionProteinLigand
+
+"""
+
 import itertools
 from argparse import ArgumentParser
 from pathlib import Path
@@ -26,14 +36,12 @@ def main(args):
     batch_converter = alphabet.get_batch_converter()
 
     pdb_ids: List[str] = []
-    # with open(args.data_dir / "nn_pdb_ids", "r") as f:
-    #     pdb_ids.extend(line.strip() for line in f.readlines())
 
-    with open(args.data_dir / "train_pdb_ids", "r") as f:
+    with open(args.data_dir / "PRD_train_pdb_ids", "r") as f:
         pdb_ids.extend(line.strip() for line in f.readlines())
-    with open(args.data_dir / "val_pdb_ids", "r") as f:
+    with open(args.data_dir / "PRD_val_pdb_ids", "r") as f:
         pdb_ids.extend(line.strip() for line in f.readlines())
-    with open(args.data_dir / "test_pdb_ids", "r") as f:
+    with open(args.data_dir / "PRD_test_pdb_ids", "r") as f:
         pdb_ids.extend(line.strip() for line in f.readlines())
 
 

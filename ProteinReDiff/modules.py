@@ -1,3 +1,20 @@
+"""
+Adapted from Nakata, S., Mori, Y. & Tanaka, S. 
+End-to-end protein–ligand complex structure generation with diffusion-based generative models.
+BMC Bioinformatics 24, 233 (2023).
+https://doi.org/10.1186/s12859-023-05354-5
+
+Repository: https://github.com/shuyana/DiffusionProteinLigand
+
+ProteinReDiff includes significant innovations including:
+- Stochastically masking & featurization of protein sequences
+- Adaptations of Single Representation Attention and Outer Product Mean from AF2
+- Parameterization of \beta_T diffusion (instead of using variational lower bound in DPL)
+- Denoising through both sequence and structure spaces
+- Flexible generation output (sequences only, sequence-structures)
+
+"""
+
 import math
 from typing import Callable, Optional, Tuple, Union, Mapping
 from argparse import ArgumentParser, Namespace
@@ -355,20 +372,6 @@ class Denoiser(nn.Module):
         self.opm = AF2_modules.OuterProductUpdate(c_m = self.single_dim,
                                                 c_z = self.pair_dim,
                                                 c_hidden = self.single_dim//4)
-        # self.GVPEncoderBlock = gvp_modules.GVPEncoder(args)
-
-        # self.embed_gvp_vect = nn.Sequential(
-        #     nn.LayerNorm(3, elementwise_affine=False),
-        #     Linear(3, 1, bias=False, init="relu"),
-        # )
-        
-        
-        
-        
-        ##TODO: embed beta in the future
-        # self.embed_beta = nn.Sequential(
-        #     Linear(1, self.pair_dim, bias=False, init="normal"),
-        # )
         self.folding_blocks = nn.ModuleList(
             [
                 FoldingBlock(
@@ -386,83 +389,16 @@ class Denoiser(nn.Module):
         
         
     def forward(self, batch, z, t, single, pair, cache):
-        # atom_feats = batch["atom_feats"]
-        # atom_mask = batch["atom_mask"]
-        # bond_feats = batch["bond_feats"]
-        # bond_mask = batch["bond_mask"]
-        # atom_pos = batch["atom_pos"]
-        # bond_distance = batch["bond_distance"]
-        # residue_type = batch["residue_type"]
         residue_mask = batch["residue_mask"]
-        # residue_esm = batch["residue_esm"]
-        # residue_chain_index = batch["residue_chain_index"]
-        # residue_index = batch["residue_index"]
         mask = batch["residue_and_atom_mask"]
-        # single = single.half()
-        # pair = pair.half()
-        
         mask_2d = mask.unsqueeze(-1) * mask.unsqueeze(-2)
-
-        
-
-        # node_embeddings, cache = self.GVPEncoderBlock(batch, z, single, cache)
-        # single, vector_embedding = node_embeddings
-    
-        # dist_embedding = (
-        #     (vector_embedding - vector_embedding.squeeze().unsqueeze(-3)).norm(dim=-1)  ## (NN) remove norm
-                              
-        # )
-        
-        
-
-        ## Vector projection
-        # pair += mask_2d.unsqueeze(-1) * (
-        #     self.embed_gvp_vect(dist_embedding).unsqueeze(0).squeeze(-1)
-        # )
-        
-        
-        
-        ## Vector norm
-        # pair += mask_2d.unsqueeze(-1) * (
-        #     dist_embedding.unsqueeze(0)
-        # )
-        
-        # single += mask.unsqueeze(-1) * (
-        #     single_update 
-        # )
-
-        # single = self.SPAAttnBlock(single, pair, mask)
-
-        ##### OPM with SPA
-        
-        # for i in range(self.n_recycles):
-        #     single = self.SPAAttnBlock(single, pair, mask)  
-        #     pair = self.opm(single, mask)#.unsqueeze(0)
-        ### 
-        # pair += mask_2d.unsqueeze(-1) * (
-        #     self.opm(single, mask)#.unsqueeze(0)
-        # )
-        # single = self.SPAAttnBlock(single, pair, mask) 
-
         pair += mask_2d.unsqueeze(-1) * (
-            self.opm(single, mask)#.unsqueeze(0)
+            self.opm(single, mask)
         )
         single = self.SPAAttnBlock(single, pair, mask) 
-        
-
-   
-        ####
-        # single = singles/self.n_recycles
         checkpoint_fn = checkpoint if pair.requires_grad else lambda f, *args: f(*args)
         for block in self.folding_blocks:
             single, pair = checkpoint_fn(block, single, pair, mask)
-            # single, pair = block(single, pair, mask)
         
         pair = 0.5 * (pair + einops.rearrange(pair, "b i j h -> b j i h"))
-
-        
-        
-        
-        # pair = pair
-        # single = single
         return single, pair, cache

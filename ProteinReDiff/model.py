@@ -1,3 +1,20 @@
+"""
+Adapted from Nakata, S., Mori, Y. & Tanaka, S. 
+End-to-end protein–ligand complex structure generation with diffusion-based generative models.
+BMC Bioinformatics 24, 233 (2023).
+https://doi.org/10.1186/s12859-023-05354-5
+
+Repository: https://github.com/shuyana/DiffusionProteinLigand
+
+ProteinReDiff includes significant innovations including:
+- Stochastically masking & featurization of protein sequences
+- Adaptations of Single Representation Attention and Outer Product Mean from AF2
+- Parameterization of \beta_T diffusion (instead of using variational lower bound in DPL)
+- Denoising through both sequence and structure spaces
+- Flexible generation output (sequences only, sequence-structures)
+
+"""
+
 from argparse import ArgumentParser, Namespace
 from typing import Mapping, Union
 
@@ -40,7 +57,6 @@ class ProteinReDiffModel(pl.LightningModule):
         super().__init__()
         if isinstance(args, Mapping):
             args = Namespace(**args)
-        # self.no_cb_distogram = args.no_cb_distogram
         self.pair_dim = args.pair_dim
         self.single_dim = args.single_dim
         self.dist_dim = args.dist_dim
@@ -52,8 +68,6 @@ class ProteinReDiffModel(pl.LightningModule):
         self.setup_schedule = False
         self.setup_esm = False
         self.mask_prob = args.mask_prob
-        # self.gamma_0 = args.gamma_0
-        # self.gamma_1 = args.gamma_1
         self.num_steps = args.num_steps
         self.diffusion_schedule = args.diffusion_schedule
         self.learning_rate = args.learning_rate
@@ -72,7 +86,6 @@ class ProteinReDiffModel(pl.LightningModule):
             SinusoidalProjection(self.time_dim),
             Linear(self.time_dim, self.pair_dim, bias=False, init="normal"),
         )
-        # self.embed_residue_type = nn.Embedding(len(RESIDUE_TYPES)+1, self.single_dim) ## (NN) +1 to ignore gaps 0
         self.embed_residue_type = nn.Sequential(
             nn.LayerNorm(len(RESIDUE_TYPES)+1, elementwise_affine=False),
             Linear(len(RESIDUE_TYPES)+1, self.single_dim, bias = False, init = 'normal'),
@@ -88,8 +101,6 @@ class ProteinReDiffModel(pl.LightningModule):
             Linear(self.esm_dim, self.single_dim, bias=False, init="normal"),
         )
         self.embed_relpos = nn.Embedding(self.max_relpos * 2 + 1, self.pair_dim)
-        # self.embed_cb_distogram = nn.Embedding(39, self.pair_dim)
-        # self.embed_ca_distogram = nn.Embedding(39, self.pair_dim)
         self.embed_dist = nn.Sequential(
             RadialBasisProjection(self.dist_dim),
             Linear(self.dist_dim, self.pair_dim, bias=False, init="normal"),
@@ -110,22 +121,9 @@ class ProteinReDiffModel(pl.LightningModule):
             Linear(self.single_dim, len(RESIDUE_TYPES)+1, bias=False, init="final"),
         )
         
-
-        # if self.training_mode:
-        #     with torch.no_grad():
-        #         self.esm_model, _ = torch.hub.load("facebookresearch/esm:main", "esm2_t33_650M_UR50D")
-        #         for param in self.esm_model.parameters():
-        #             param.requires_grad = False
-        #         self.esm_model.to(self.device).eval() #to(self.device)
-            ## ignore esm params:
-            # ema_parameters = [param for name, param in self.named_parameters() if not name.startswith("esm_model")]
-        #     ema_parameters = list(self.parameters())[:-538]
-            
-        #     self.ema = ExponentialMovingAverage(ema_parameters, decay=self.ema_decay) #self.parameters()
-        # else:
         self.ema = ExponentialMovingAverage(self.parameters(), decay=self.ema_decay) #
         
-        self.save_hyperparameters(args) ## TODO: Uncomment before training
+        self.save_hyperparameters(args)
 
         
 
@@ -138,7 +136,6 @@ class ProteinReDiffModel(pl.LightningModule):
     @staticmethod
     def add_diffusion_args(parent_parser: ArgumentParser) -> ArgumentParser:
         parser = parent_parser.add_argument_group("DiffusionModel")
-        # parser.add_argument("--no_cb_distogram", action="store_true")
         parser.add_argument("--training_mode", action="store_true")
         parser.add_argument("--mask_prob", type=float, default=1.0)
         parser.add_argument("--esm_dim", type=int, default=1280)
@@ -168,8 +165,6 @@ class ProteinReDiffModel(pl.LightningModule):
         parser.add_argument("--dropout", type = float, default = 0.3)
         parser.add_argument("--num_gvp_encoder_layers", type = int, default = 3)
         parser.add_argument("--num_positional_embeddings", type = int, default = 16)
-        # parser.add_argument("--gvp_node_hidden_dim_scalar", type = int, default = 128)
-        # parser.add_argument("--gvp_node_hidden_dim_vector", type = int, default = 64)
         parser.add_argument("--gvp_edge_hidden_dim_scalar", type = int, default = 32)
         parser.add_argument("--gvp_edge_hidden_dim_vector", type = int, default = 32)
         return parent_parser
@@ -208,7 +203,6 @@ class ProteinReDiffModel(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         lr_scheduler_config = {
-            # "scheduler": torch.optim.lr_scheduler.LinearLR(
             "scheduler": torch.optim.lr_scheduler.LinearLR(
                 optimizer,
                 start_factor=1.0 / self.warmup_steps,
@@ -220,10 +214,6 @@ class ProteinReDiffModel(pl.LightningModule):
 
     def optimizer_step(self, *args, **kwargs):
         super().optimizer_step(*args, **kwargs)
-        # if self.training_mode:
-        #     ema_parameters = list(self.parameters())[:-538]
-        #     self.ema.update(ema_parameters)
-        # else:
         self.ema.update(self.parameters())
 
     def load_esm(self):
@@ -231,30 +221,23 @@ class ProteinReDiffModel(pl.LightningModule):
             self.esm_model, _ = torch.hub.load("facebookresearch/esm:main", "esm2_t33_650M_UR50D")
             for param in self.esm_model.parameters():
                 param.requires_grad = False
-            self.esm_model.to(self.device).eval() #to(self.device)
+            self.esm_model.to(self.device).eval() 
             
     def validation_step(self, batch, batch_idx):
-        ## (NN)
         if not self.setup_schedule:
             self.run_setup_schedule()
             self.setup_schedule =True
 
-        # if not self.setup_esm:
-        #     if self.training_mode:
-        #         self.load_esm()
-        #     self.setup_esm = True
 
         batch = self.prepare_batch(batch, batch_idx)
         x = batch["x"]
         mask = batch["residue_and_atom_mask"]
         batch_size = x.size(0)
         num_nodes = einops.reduce(mask > 0.5, "b i -> b", "sum")
-        # t_struc = torch.rand(batch_size, device=self.device)
-        # t_seq = torch.rand(batch_size, device=self.device) ## (NN)
         t = torch.randint(0, self.num_steps, size=(batch_size,)).to(self.device)
-        with self.ema.average_parameters(): ## (NN) for valudation only
-            diff_loss= self.diffusion_loss(batch, x, mask, t) ## (NN)
-        loss = torch.mean(diff_loss / num_nodes) ## (NN)
+        with self.ema.average_parameters(): 
+            diff_loss= self.diffusion_loss(batch, x, mask, t)
+        loss = torch.mean(diff_loss / num_nodes)
         self.log(
             "val_loss",
             loss,
@@ -276,7 +259,6 @@ class ProteinReDiffModel(pl.LightningModule):
         bond_distance = batch["bond_distance"]
         residue_type = batch["residue_type"]
         residue_mask = batch["residue_mask"]
-        # if self.training:
         residue_extra_mask = batch["residue_extra_mask"]
         residue_esm = batch["residue_esm"]
         residue_chain_index = batch["residue_chain_index"]
@@ -297,42 +279,28 @@ class ProteinReDiffModel(pl.LightningModule):
         mask_2d = mask.unsqueeze(-1) * mask.unsqueeze(-2)
         zi_zj = z.unsqueeze(-2) - z.unsqueeze(-3)
         noise_dist = torch.linalg.norm(zi_zj, dim=-1)
-
-        
-
         scaled_t = (t)/self.num_steps
-
         single = atom_mask.unsqueeze(-1) * self.embed_atom_feats(atom_feats)
         single += residue_mask.unsqueeze(-1) * (
-                    self.embed_residue_type(seq_t) + ## (NN)
-                    self.embed_residue_esm(residue_esm) ## (NN)
+                    self.embed_residue_type(seq_t) +
+                    self.embed_residue_esm(residue_esm) 
                 )
-
         pair = atom_mask_2d.unsqueeze(-1) * (
             bond_mask.unsqueeze(-1) * self.embed_bond_feats(bond_feats)
             + self.embed_bond_distance(bond_distance.clamp(max=self.max_bond_distance))
         )
-        
         pair += residue_mask_2d.unsqueeze(-1) * (
             chain_mask.unsqueeze(-1)
             * self.embed_relpos(
                 self.max_relpos
                 + relpos.clamp(min=-self.max_relpos, max=self.max_relpos)
             )
-
         ) 
-        
         pair += mask_2d.unsqueeze(-1) * (
             self.embed_dist(noise_dist) + self.embed_beta(scaled_t[:, None, None]) 
         )
-        
-
-
         cache = None
         single, pair, cache = self.Denoiser(batch, residue_ca_pos, t, single, pair, cache)
-        
-        
-        
         w = self.weight_radial(pair)
         r = zi_zj * torch.rsqrt(
             torch.sum(torch.square(zi_zj), -1, keepdim=True) + 1e-4
@@ -343,7 +311,6 @@ class ProteinReDiffModel(pl.LightningModule):
             "sum",
         )
         noise_pred = remove_mean(noise_pred, mask)
-
         seq_pred = self.seq_mlp(single)
 
         return noise_pred, seq_pred
@@ -356,15 +323,12 @@ class ProteinReDiffModel(pl.LightningModule):
         bond_distance = batch["bond_distance"]
         residue_type = batch["residue_type"]
         residue_mask = batch["residue_mask"]
-        # if self.training:
         residue_extra_mask = batch["residue_extra_mask"]
         residue_esm = batch["residue_esm"]
         residue_chain_index = batch["residue_chain_index"]
         residue_index = batch["residue_index"]
         residue_one_hot = batch["residue_one_hot"]
         residue_ca_pos = batch["residue_atom_pos"][:, :, 1]
-
-
         atom_mask_2d = atom_mask.unsqueeze(-1) * atom_mask.unsqueeze(-2)
         residue_mask_2d = residue_mask.unsqueeze(-1) * residue_mask.unsqueeze(-2)
         relpos = residue_index.unsqueeze(-1) - residue_index.unsqueeze(-2)
@@ -374,38 +338,29 @@ class ProteinReDiffModel(pl.LightningModule):
         mask_2d = mask.unsqueeze(-1) * mask.unsqueeze(-2)
         zi_zj = z.unsqueeze(-2) - z.unsqueeze(-3)
         noise_dist = torch.linalg.norm(zi_zj, dim=-1)
-
-        
-
         scaled_t = (t)/self.num_steps
-
         single = atom_mask.unsqueeze(-1) * self.embed_atom_feats(atom_feats)
         single += residue_mask.unsqueeze(-1) * (
-                    self.embed_residue_type(seq_t) + ## (NN)
-                    self.embed_residue_esm(residue_esm) ## (NN)
+                    self.embed_residue_type(seq_t) + 
+                    self.embed_residue_esm(residue_esm) 
                 )
 
         pair = atom_mask_2d.unsqueeze(-1) * (
             bond_mask.unsqueeze(-1) * self.embed_bond_feats(bond_feats)
             + self.embed_bond_distance(bond_distance.clamp(max=self.max_bond_distance))
         )
-        
         pair += residue_mask_2d.unsqueeze(-1) * (
             chain_mask.unsqueeze(-1)
             * self.embed_relpos(
                 self.max_relpos
                 + relpos.clamp(min=-self.max_relpos, max=self.max_relpos)
             )
-
         ) 
-        
         pair += mask_2d.unsqueeze(-1) * (
             self.embed_dist(noise_dist) + self.embed_beta(scaled_t[:, None, None]) 
         )
-        
         cache = None
         single, pair, cache = self.Denoiser(batch, residue_ca_pos, t, single, pair, cache)
-        
         w = self.weight_radial(pair)
         r = zi_zj * torch.rsqrt(
             torch.sum(torch.square(zi_zj), -1, keepdim=True) + 1e-4
@@ -416,22 +371,19 @@ class ProteinReDiffModel(pl.LightningModule):
             "sum",
         )
         noise_pred = remove_mean(noise_pred, mask)
-
         seq_pred = self.seq_mlp(single)
-
         return noise_pred, seq_pred
 
     @torch.inference_mode()
     def sample(self, batch):
-        if not self.setup_schedule: ##(NN)
+        if not self.setup_schedule:
             self.run_setup_schedule()
             self.setup_schedule = True
 
         if not self.setup_esm:
             if self.training_mode:
                 self.load_esm()
-            self.setup_esm = True
-                        
+            self.setup_esm = True          
         batch = self.prepare_batch(batch)
         x = batch["x"]
         mask = batch["residue_and_atom_mask"]
@@ -451,7 +403,6 @@ class ProteinReDiffModel(pl.LightningModule):
         for i in range(self.num_steps):
 
             t = torch.broadcast_to(time_steps[i], (batch_size,))
-            
             # [b, 1, 1]
             w_noise = ((1. - self.alphas[t].to(self.device)) / self.sqrt_one_minus_alphas_cumprod[t].to(self.device))
             
@@ -467,9 +418,7 @@ class ProteinReDiffModel(pl.LightningModule):
                 noise = remove_mean(torch.randn_like(x), mask)
                 std = self.sqrt_betas[t][:,None, None].to(self.device)
                 z_struc_t = mean + std * noise
-
         pos = nanometre_to_angstrom(z_struc_t)
-        
         return pos, residue_mask.unsqueeze(-1) * seq_pred
 
     def prepare_batch(self, batch, id=None):
@@ -488,33 +437,10 @@ class ProteinReDiffModel(pl.LightningModule):
             + residue_mask.unsqueeze(-1) * residue_ca_pos
         )
         x = angstrom_to_nanometre(pos)
-        mask = atom_mask + residue_mask #both mask
-
-        # if self.training_mode:
-        #     residue_spatial_mask, residue_spatial_mask_esm = self.SpatialMaskingBlock(residue_ca_pos, residue_mask,
-        #                                                     atom_pos, atom_mask)
-            # esm_tokens = self.SpatialMaskingBlock.mask_residue_esm(residue_esm_tokens)
-            
-            
-            # with torch.no_grad():
-            #     results = self.esm_model(esm_tokens.to(self.device), repr_layers=[self.esm_model.num_layers])
-            #     token_representations = results["representations"][self.esm_model.num_layers] 
-            #     batch["residue_esm"] = token_representations * residue_mask.unsqueeze(-1)
-            
-
-            # batch["residue_esm"] = batch["residue_esm"] * residue_spatial_mask.unsqueeze(-1)
-            # spatial_mask = atom_mask + residue_spatial_mask
-            # batch["residue_spatial_mask"] = residue_spatial_mask
-            # batch["residue_and_atom_spatial_mask"] = spatial_mask
-            # batch["residue_type_masked"] = (residue_type * residue_spatial_mask).long()
-            # batch["residue_atom_pos"] = residue_spatial_mask[:,:,None,None]* batch["residue_atom_pos"]
-            # batch["residue_one_hot"] = batch["residue_one_hot"] * residue_spatial_mask[:,:,None]
-        # else:
-        #     batch["residue_type_masked"] = batch["residue_type"]
+        mask = atom_mask + residue_mask 
 
         if self.training_mode:
             residue_esm_tokens = batch["residue_esm_tokens"]
-            # torch.manual_seed(id)
             rt = torch.rand(1)
             mask_prob = np.random.uniform(0.1,self.mask_prob)
             if rt< 0.3:
@@ -526,19 +452,8 @@ class ProteinReDiffModel(pl.LightningModule):
                 esm_tokens = self.SpatialMaskingBlock.mask_residue_esm(residue_esm_tokens)
                 
             else:
-                # residue_extra_mask = residue_mask.clone()
                 residue_extra_mask, residue_inv_extra_mask, residue_extra_mask_esm = self.RandomMaskingBlock(residue_mask, 0., inverse_mask = True)
-
-            # if rt<0.5:
-
-                # with torch.set_grad_enabled(False):
-                #     results = self.esm_model(esm_tokens.to(self.device), repr_layers=[self.esm_model.num_layers])  #
-                #     token_representations = results["representations"][self.esm_model.num_layers] 
-                # batch["residue_esm"] = (token_representations * residue_extra_mask.unsqueeze(-1)).requires_grad_(True)
             batch["residue_esm"] = batch["residue_esm"] * residue_extra_mask.unsqueeze(-1)
-            # spatial_mask = atom_mask + residue_spatial_mask
-            # batch["residue_spatial_mask"] = residue_spatial_mask
-            # batch["residue_and_atom_spatial_mask"] = spatial_mask
             batch["residue_type_masked"] = (residue_type * residue_extra_mask).long()
             batch["residue_one_hot"] = batch["residue_one_hot"] * residue_extra_mask.unsqueeze(-1)
         else:
@@ -546,61 +461,28 @@ class ProteinReDiffModel(pl.LightningModule):
             batch["residue_esm"] = batch["residue_esm"] * residue_extra_mask.unsqueeze(-1)
             batch["residue_type_masked"] = (residue_type * residue_extra_mask).long()
             batch["residue_one_hot"] = batch["residue_one_hot"] * residue_extra_mask.unsqueeze(-1)
-
-
         batch["residue_extra_mask"] = residue_extra_mask
         batch["residue_inv_extra_mask"] = residue_inv_extra_mask
         batch["x"] = x
         batch["residue_and_atom_mask"] = mask
-        
-        
-        
         return batch
-    
-    ## TODO: Consider to do random stochastic for beta_t
-    def gamma(self, t):
-        return self.gamma_0 + (self.gamma_1 - self.gamma_0) * t
 
-    ### (NN) Add noise to structure, sequence
-    def add_noise(self, x, mask, t): 
-        with torch.enable_grad():
-            t = t.clone().detach().requires_grad_(True)
-            gamma_t = self.gamma(t)
-            if x.size(-1)==3: ## (NN) only require grad for structure: TODO check diffusion grad
-                grad_gamma_t = torch.autograd.grad(gamma_t.sum(), t, create_graph=True)[0]
-            else:
-                grad_gamma_t = None
-        gamma_t = gamma_t.detach()
-        alpha_t = torch.sqrt(torch.sigmoid(-gamma_t))
-        sigma_t = torch.sqrt(torch.sigmoid(gamma_t))
-        noise = remove_mean(torch.randn_like(x), mask)
-        z_t = alpha_t.view([-1] + [1]*x.size(0)) * x \
-                + sigma_t.view([-1] + [1]*x.size(0)) * noise
-        return z_t, gamma_t, noise, grad_gamma_t
-    ###
 
     def q(self, x, seq, t, noise_z, noise_seq, batch):
         """
-        (NN) (TODONE:q process in Genie)
         Forward noising step on structure x
         """
-        
-        #noise x
         residue_inv_extra_mask = batch["residue_inv_extra_mask"]
         residue_extra_mask = batch["residue_extra_mask"]
-
-        
         z_t = self.sqrt_alphas_cumprod[t][:,None, None].to(self.device) * x + \
 			self.sqrt_one_minus_alphas_cumprod[t][:,None, None].to(self.device) * noise_z
-
-        
         seq_t = self.sqrt_alphas_cumprod[t][:,None, None].to(self.device) * seq + \
-			self.sqrt_one_minus_alphas_cumprod[t][:,None, None].to(self.device) * noise_seq ## (NN) used to be 1 None
+			self.sqrt_one_minus_alphas_cumprod[t][:,None, None].to(self.device) * noise_seq 
         seq_t = residue_extra_mask.unsqueeze(-1) * seq + residue_inv_extra_mask.unsqueeze(-1) * seq_t
 
         t1 = (t - 1).clamp(min = 0)
         seq_t1 = self.sqrt_alphas_cumprod[t1][:,None, None].to(self.device) * seq + \
-			self.sqrt_one_minus_alphas_cumprod[t1][:,None, None].to(self.device) * noise_seq ## (NN)
+			self.sqrt_one_minus_alphas_cumprod[t1][:,None, None].to(self.device) * noise_seq
 
 
         return z_t, seq_t, seq_t1, t1
@@ -613,31 +495,26 @@ class ProteinReDiffModel(pl.LightningModule):
         noise_z = remove_mean(torch.randn_like(x), mask)
         noise_seq = remove_mean(torch.randn_like(seq), residue_mask)
         z_t, seq_t, seq_t1, t1 = self.q(x, seq, t, noise_z, noise_seq, batch) 
-        noise_pred, seq_pred = self(batch, z_t, seq_t, mask, t) # (NN): not noising sequence
-
-        # noise_seq_t1 = remove_mean(torch.randn_like(seq), residue_mask)
+        noise_pred, seq_pred = self(batch, z_t, seq_t, mask, t) 
         seq_pred_t1 = self.sqrt_alphas_cumprod[t1][:,None, None].to(self.device) * seq_pred + \
-			self.sqrt_one_minus_alphas_cumprod[t1][:,None, None].to(self.device) * noise_seq #noise_seq_t1
+			self.sqrt_one_minus_alphas_cumprod[t1][:,None, None].to(self.device) * noise_seq 
 
         
 
         diff_loss = (
             1
-            # 0.5
-            # * grad_gamma_t 
             * einops.reduce(
                 mask.unsqueeze(-1) * torch.square(noise_pred - noise_z),
                 "b i xyz -> b",
                 "sum",
             )
         )
-        # torch.log_softmax(output, dim=1), torch.softmax(target, dim=1)
         diff_loss += ( 
                         F.kl_div(
                                 torch.log_softmax(seq_pred_t1, dim = -1) * residue_mask.unsqueeze(-1),
                                 torch.softmax(seq_t1, dim = -1) * residue_mask.unsqueeze(-1),
                                 reduction = "none"
-                            ) #* mask.unsqueeze(-1)
+                            ) 
                             ).sum()
         
         seq_pred = (seq_pred + 1)/2
@@ -645,17 +522,13 @@ class ProteinReDiffModel(pl.LightningModule):
                         F.cross_entropy(seq_pred.view(-1, len(RESIDUE_TYPES)+1), batch["residue_type"].view(-1),  
                                      reduction="none", ignore_index= 0 
                                      )* mask.view(-1)
-                                     ).sum() ## (NN); index of 0 
+                                     ).sum() 
         return diff_loss 
 
     def training_step(self, batch, batch_idx):
         if not self.setup_schedule:
             self.run_setup_schedule()
             self.setup_schedule =True
-
-        # if not self.setup_esm:
-        #     self.run_setup_schedule()
-        #     self.setup_schedule =True
         
         batch = self.prepare_batch(batch, batch_idx)
         x = batch["x"]
@@ -663,7 +536,7 @@ class ProteinReDiffModel(pl.LightningModule):
         batch_size = x.size(0)
         num_nodes = einops.reduce(mask > 0.5, "b i -> b", "sum")
         t = torch.randint(0, self.num_steps, size=(batch_size,)).to(self.device)
-        diff_loss= self.diffusion_loss(batch, x, mask, t) ##(NN)
+        diff_loss= self.diffusion_loss(batch, x, mask, t) 
         loss = torch.mean(diff_loss / num_nodes)
         self.log(
             "train_loss",
