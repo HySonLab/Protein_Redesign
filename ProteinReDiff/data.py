@@ -23,8 +23,7 @@ from .features import ALLOWABLE_BOND_FEATURES, featurize_atom, featurize_bond
 from .mol import get_mol_positions
 from .protein import Protein, protein_to_ca_mol
 
-from .dev import spatial_mask 
-
+# from .dev import spatial_mask
 
 def ligand_to_data(ligand: Chem.Mol, **kwargs: Any) -> Mapping[str, Any]:
     num_atoms = ligand.GetNumAtoms()

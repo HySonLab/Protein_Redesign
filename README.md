@@ -135,7 +135,6 @@ python train.py \
     --pair_dim 32 \
     --num_blocks 4
 ```
-where the no_cb_distogram argument makes the model protein structure-free.
 
 Please modify the batch_size and accumulate_grad_batches arguments according to your machine(s).
 

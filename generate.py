@@ -80,10 +80,6 @@ def main(args):
     if args.protein.endswith(".pdb"):
         protein = protein_from_pdb_file(args.protein)
     else:
-        if not model.no_cb_distogram:
-            raise ValueError(
-                "When using the protein structure-dependent model, the protein structure must be provided with a PDB file."
-            )
         protein = protein_from_sequence(args.protein)
 
     if args.ligand.endswith(".sdf") or args.ligand.endswith(".mol2"):
