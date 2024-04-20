@@ -2,6 +2,10 @@
 
 ![Equivariant-Diffusion](Equivariant-Diffusion.png)
 
+Preprint: https://www.biorxiv.org/content/10.1101/2024.04.17.589997v1.full.pdf
+
+DOI: https://doi.org/10.1101/2024.04.17.589997
+
 Contributors:
 * Nhan Nguyen 
 * Duy Nguyen 
@@ -181,3 +185,20 @@ This work is primarily based on the following repositories:
 - https://github.com/deepmind/alphafold (AF2 modules, protein sequence procesing)
 - https://github.com/facebookresearch/esm (protein featurization)
 - https://github.com/HannesStark/EquiBind (partitions of train/validation/test sets)
+
+## Please cite our work as follows
+
+```bibtex
+@article {Nguyen2024.04.17.589997,
+	author = {Viet Thanh Duy Nguyen and Nhan Nguyen and Truong Son Hy},
+	title = {Complex-based Ligand-Binding Proteins Redesign by Equivariant Diffusion-based Generative Models},
+	elocation-id = {2024.04.17.589997},
+	year = {2024},
+	doi = {10.1101/2024.04.17.589997},
+	publisher = {Cold Spring Harbor Laboratory},
+	abstract = {Proteins, serving as the fundamental architects of biological processes, interact with ligands to perform a myriad of functions essential for life. The design and optimization of ligand-binding proteins are pivotal for advancing drug development and enhancing therapeutic efficacy. In this study, we introduce ProteinReDiff, a novel computational framework designed to revolutionize the redesign of ligand-binding proteins. Distinguished by its utilization of Equivariant Diffusion-based Generative Models and advanced computational modules, ProteinReDiff enables the creation of high-affinity ligand-binding proteins without the need for detailed structural information, leveraging instead the potential of initial protein sequences and ligand SMILES strings. Our thorough evaluation across sequence diversity, structural preservation, and ligand binding affinity underscores ProteinReDiff{\textquoteright}s potential to significantly advance computational drug discovery and protein engineering. Our source code is publicly available at https://github.com/HySonLab/Protein_RedesignCompeting Interest StatementThe authors have declared no competing interest.},
+	URL = {https://www.biorxiv.org/content/early/2024/04/20/2024.04.17.589997},
+	eprint = {https://www.biorxiv.org/content/early/2024/04/20/2024.04.17.589997.full.pdf},
+	journal = {bioRxiv}
+}
+```
