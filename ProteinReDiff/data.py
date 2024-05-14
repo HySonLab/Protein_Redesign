@@ -167,7 +167,7 @@ class InferenceDataset(Dataset):
         return self.data[index]
 
 
-class PDBbindDataset(Dataset):
+class PDBDataset(Dataset):
     def __init__(self, root_dir: Union[str, Path], pdb_ids: Sequence[str]):
         super().__init__()
         if isinstance(root_dir, str):
@@ -203,7 +203,7 @@ class CombinedDataset(IterableDataset):
     def __iter__(self):
         return self.get_stream()
 
-class PDBbindDataModule(pl.LightningDataModule):
+class PDBDataModule(pl.LightningDataModule):
     def __init__(
         self,
         data_dir: Union[str, Path] = "data",
@@ -214,7 +214,7 @@ class PDBbindDataModule(pl.LightningDataModule):
         if isinstance(data_dir, str):
             data_dir = Path(data_dir)
         self.data_dir = data_dir
-        self.cache_dir = data_dir / "PDBBind_processed_cache"
+        self.cache_dir = data_dir / "PDB_processed_cache"
         self.batch_size = batch_size
         self.num_workers = num_workers
 
@@ -231,7 +231,7 @@ class PDBbindDataModule(pl.LightningDataModule):
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(
-            PDBbindDataset(self.cache_dir, self.train_pdb_ids),
+            PDBDataset(self.cache_dir, self.train_pdb_ids),
             batch_size=self.batch_size,
             shuffle=True,
             num_workers=self.num_workers,
@@ -242,7 +242,7 @@ class PDBbindDataModule(pl.LightningDataModule):
 
     def val_dataloader(self) -> DataLoader:
         return DataLoader(
-            PDBbindDataset(self.cache_dir, self.val_pdb_ids),
+            PDBDataset(self.cache_dir, self.val_pdb_ids),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             collate_fn=collate_fn,
@@ -251,7 +251,7 @@ class PDBbindDataModule(pl.LightningDataModule):
 
     def test_dataloader(self) -> DataLoader:
         return DataLoader(
-            PDBbindDataset(self.cache_dir, self.test_pdb_ids),
+            PDBDataset(self.cache_dir, self.test_pdb_ids),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             collate_fn=collate_fn,

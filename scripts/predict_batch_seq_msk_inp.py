@@ -5,16 +5,17 @@ import os
 from argparse import ArgumentParser
 from operator import itemgetter
 from pathlib import Path
-from typing import Iterable, List, Union, Tuple
+from typing import Iterable, List, Union, Tuple, Any
 
 import numpy as np
+import random
 import pytorch_lightning as pl
 import torch
 from rdkit import Chem
 from torch.utils.data import DataLoader
 
 from ProteinReDiff.data import InferenceDataset, collate_fn, ligand_to_data, protein_to_data
-from ProteinReDiff.model import ProteinReDiffModel ## (NN)
+from ProteinReDiff.model import ProteinReDiffModel
 from ProteinReDiff.mol import get_mol_positions, mol_from_file, update_mol_positions
 from ProteinReDiff.protein import (
     RESIDUE_TYPES,
@@ -25,14 +26,36 @@ from ProteinReDiff.protein import (
     proteins_to_pdb_file,
 )
 from ProteinReDiff.tmalign import run_tmalign
+ 
+torch.multiprocessing.set_start_method('fork')
 
 RESIDUE_TYPES_MASK = RESIDUE_TYPES + ["<mask>"]
-def compute_residue_esm(protein: Protein) -> torch.Tensor:
-    esm_model, esm_alphabet = torch.hub.load(
-        "facebookresearch/esm:main", "esm2_t33_650M_UR50D"
-    )
-    esm_model.cuda().eval()
-    esm_batch_converter = esm_alphabet.get_batch_converter()
+
+
+
+esm_model = None 
+esm_batch_converter = None
+
+def load_esm_model(accelerator):
+    global esm_model, esm_batch_converter
+    if esm_model is None or esm_batch_converter is None:
+        esm_model, esm_alphabet = torch.hub.load(
+            "facebookresearch/esm:main", "esm2_t33_650M_UR50D"
+        )
+
+        # esm_model.cuda().eval()
+        if accelerator == "gpu":
+            esm_model.cuda().eval()
+        else:
+            esm_model.eval()
+        esm_batch_converter = esm_alphabet.get_batch_converter()
+
+
+
+def compute_residue_esm(protein: Protein, accelerator: str) -> torch.Tensor:
+
+    global esm_model, esm_batch_converter
+    load_esm_model(accelerator)
 
     data = []
     for chain, _ in itertools.groupby(protein.chain_index):
@@ -40,7 +63,11 @@ def compute_residue_esm(protein: Protein) -> torch.Tensor:
             [RESIDUE_TYPES_MASK[aa] for aa in protein.aatype[protein.chain_index == chain]]
         )
         data.append(("", sequence))
-    batch_tokens = esm_batch_converter(data)[2].cuda()
+    # batch_tokens = esm_batch_converter(data)[2].cuda()
+    if accelerator == "gpu":
+        batch_tokens = esm_batch_converter(data)[2].cuda()
+    else:
+        batch_tokens = esm_batch_converter(data)[2]
     with torch.inference_mode():
         results = esm_model(batch_tokens, repr_layers=[esm_model.num_layers])
     token_representations = results["representations"][esm_model.num_layers].cpu()
@@ -65,6 +92,24 @@ def proteins_from_fasta(fasta_file: Union[str, Path]):
                 proteins.append(protein)
 
     return proteins, names
+
+def proteins_from_fasta_with_mask(fasta_file: Union[str, Path], mask_percent: float = 0.0):
+    names = []
+    proteins = []
+    sequences = []
+    with open(fasta_file, "r") as f:
+        for line in f:
+            if line.startswith(">"):
+                name = line.lstrip(">").rstrip("\n").replace(" ","_")
+                names.append(name)
+            elif not line in ['\n', '\r\n']:
+                sequence = line.rstrip("\n")
+                sequence = mask_sequence_by_percent(sequence, mask_percent)
+                protein = protein_from_sequence(sequence)
+                proteins.append(protein)
+                sequences.append(sequence)
+
+    return proteins, names, sequences
 
 def parse_ligands(ligand_input: Union[str, Path, list]):
     ligands = []
@@ -110,9 +155,17 @@ def update_seq(
     protein = dataclasses.replace(protein, aatype = aatype)
     return protein
 
+def mask_sequence_by_percent(seq, percentage=0.2):
+    aa_to_replace = random.sample(range(len(seq)), int(len(seq)*percentage))
+
+    output_aa = [char if idx not in aa_to_replace else 'X' for idx, char in enumerate(seq)]
+    masked_seq = ''.join(output_aa)
+
+    return masked_seq
 
 def main(args):
-    pl.seed_everything(args.seed, workers=True)
+    pl.seed_everything(np.random.randint(999999), workers=True)
+    
     # Check if the directory exists
     if os.path.exists(args.output_dir):
         # Remove the existing directory
@@ -123,45 +176,45 @@ def main(args):
     model = ProteinReDiffModel.load_from_checkpoint(
         args.ckpt_path, num_steps=args.num_steps
     )
-    ## (NN)
     model.training_mode = False
-    args.num_gpus = 1
     model.mask_prob = args.mask_prob
     ## (NN)
 
     # Inputs
-    proteins, names = proteins_from_fasta(args.fasta)
-    
+    proteins, names, masked_sequences = proteins_from_fasta_with_mask(args.fasta, args.mask_prob)
+
+    with open(args.output_dir / "masked_sequences.fasta", "w") as f:
+        for i, (name, seq) in enumerate(zip(names, masked_sequences)):
+            f.write(">{}_sample_{}\n".format(name,i%args.num_samples))
+            f.write("{}\n".format(seq))
+
     if args.ligand_file is None:
-        ligand_input = ["*"]*args.num_samples*len(names)
+        ligand_input = ["*"]*len(names)
         
         ligands = parse_ligands(ligand_input)
     else:
         ligands = parse_ligands(args.ligand_file)
     
-    # total_num_atoms = len(protein.aatype) + ligand.GetNumAtoms()
-    # print(f"Total number of atoms: {total_num_atoms}")
-    # if total_num_atoms > 400:
-    #     warnings.warn("Too many atoms (> 400). May take a long time for sample generation.")
     
     datas = []
-    for protein, ligand in zip(proteins, ligands):
+    for name, protein, ligand in zip(names,proteins, ligands):
         data = {
             **ligand_to_data(ligand),
-            **protein_to_data(protein, residue_esm=compute_residue_esm(protein)),
+            **protein_to_data(protein, residue_esm=compute_residue_esm(protein, args.accelerator)),
         }
         datas.extend([data]*args.num_samples)
 
     
-
     # Generate samples
-    trainer = pl.Trainer.from_argparse_args(
-        args,
-        accelerator="auto",
-        gpus = args.num_gpus,
-        default_root_dir=args.output_dir,
-        max_epochs=-1,
-    )
+    
+    trainer = pl.Trainer(
+                        accelerator=args.accelerator, 
+                        devices=args.num_gpus,
+                        default_root_dir=args.output_dir,
+                        max_epochs=-1,
+                        strategy='ddp'
+                        
+                        )
     results = trainer.predict(    
         model,
         dataloaders=DataLoader(
@@ -169,15 +222,14 @@ def main(args):
             batch_size=args.batch_size,
             num_workers=args.num_workers,
             collate_fn=collate_fn,
-        ),
+        )
     )
 
-    torch.save(results,"results.pt")
-    positions = [p[0] for p in results] ## (NN)
-    probabilities = [s[1] for s in results] ## (NN)
+
+
     
-    # positions = torch.cat(positions, dim=0).detach().cpu().numpy()
-    # probabilities = torch.cat(probabilities, dim=0).detach().cpu().numpy() #(NN)
+    probabilities = [s[1] for s in results] 
+    
     names = [n for n in names for _ in range(args.num_samples)]
     
         
@@ -187,47 +239,16 @@ def main(args):
             sequence = predict_seq(seq_prob.squeeze())
             f.write("{}\n".format(sequence))
             
-    # Save samples
-    # sample_proteins, sample_ligands = [], []
-    # tmscores = []
-    # for pos, seq_prob in zip(positions, probabilities):
-        # sample_protein, sample_ligand = update_pos(protein, ligand, pos)
-        # sample_protein = update_seq(sample_protein, seq_prob)
-    #     if ref_protein is None:
-    #         warnings.warn(
-    #             "Using the first sample as a reference. The resulting structures may be mirror images."
-    #         )
-    #         ref_protein = sample_protein
-    #     tmscore, t, R = max(
-    #         run_tmalign(sample_protein, ref_protein),
-    #         run_tmalign(sample_protein, ref_protein, mirror=True),
-    #         key=itemgetter(0),
-    #     )
-    #     sample_proteins.append(
-    #         dataclasses.replace(
-    #             sample_protein, atom_pos=t + sample_protein.atom_pos @ R
-    #         )
-    #     )
-    #     sample_ligands.append(
-    #         update_mol_positions(
-    #             sample_ligand, t + get_mol_positions(sample_ligand) @ R
-    #         )
-    #     )
-    #     tmscores.append(tmscore)
-    # proteins_to_pdb_file(sample_proteins, args.output_dir / "sample_protein.pdb")
-    # with Chem.SDWriter(str(args.output_dir / "sample_ligand.sdf")) as w:
-    #     for sample_ligand in sample_ligands:
-    #         w.write(sample_ligand)
-    # with open(args.output_dir / "sample_tmscores.txt", "w") as f:
-    #     for tmscore in tmscores:
-    #         f.write(str(tmscore) + "\n")
+    
 
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     
-    parser.add_argument("--seed", type=int, default=1234)
+    # parser.add_argument("--seed", type=int, default=1234)
+    parser.add_argument("--accelerator", type=str, default="gpu")
     parser.add_argument("--batch_size", type=int, default=1)
+    parser.add_argument("--num_gpus", type=int, default=1)
     parser.add_argument("--num_workers", type=int, default=torch.get_num_threads())
     parser.add_argument("--num_steps", type=int, default=64)
     parser.add_argument("--mask_prob", type=float, default=0.3)

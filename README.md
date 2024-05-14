@@ -121,7 +121,7 @@ python -m scripts.predict_batch_seq_msk_inp \
 
 Download the PDBbind dataset from https://zenodo.org/record/6408497 and unzip it.
 
-Move the resulting PDBBind_processed directory to data/.
+Move the resulting PDBBind_processed directory to ./data/.
 
 Preprocess the dataset:
 ```bash
@@ -140,7 +140,7 @@ python train.py \
     --num_blocks 4
 ```
 
-Please modify the batch_size and accumulate_grad_batches arguments according to your machine(s).
+Please modify the batch_size, gpus, and accumulate_grad_batches arguments according to your machine(s). Also, use the flag data_dir for directory containing your weights (ie. "./data") and save_dir for directory to save training log files.
 
 Default values can be used to reproduce the settings used in our paper:
 

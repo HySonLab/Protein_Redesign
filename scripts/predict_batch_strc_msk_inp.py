@@ -51,25 +51,10 @@ def load_esm_model(accelerator):
             esm_model.eval()
         esm_batch_converter = esm_alphabet.get_batch_converter()
 
-# esm_model, esm_alphabet = torch.hub.load(
-#     "facebookresearch/esm:main", "esm2_t33_650M_UR50D"
-# )
-# esm_model.cuda().eval()
-# esm_batch_converter = esm_alphabet.get_batch_converter()
 
 def compute_residue_esm(protein: Protein, accelerator: str) -> torch.Tensor:
-    # esm_model, esm_alphabet = torch.hub.load(
-    #     "facebookresearch/esm:main", "esm2_t33_650M_UR50D"
-    # )
-    # esm_model.cuda().eval()
-    # esm_batch_converter = esm_alphabet.get_batch_converter()
+
     global esm_model, esm_batch_converter
-    # if esm_model is None or esm_batch_converter is None:
-    #     esm_model, esm_alphabet = torch.hub.load(
-    #         "facebookresearch/esm:main", "esm2_t33_650M_UR50D"
-    #     )
-    #     esm_model.cuda().eval()
-    #     esm_batch_converter = esm_alphabet.get_batch_converter()
     load_esm_model(accelerator)
 
     data = []
@@ -179,7 +164,7 @@ def mask_sequence_by_percent(seq, percentage=0.2):
     return masked_seq
 
 def main(args):
-    pl.seed_everything(np.random.randint(999999999), workers=True)
+    pl.seed_everything(np.random.randint(99999), workers=True)
     
     # Check if the directory exists
     if os.path.exists(args.output_dir):
@@ -209,11 +194,6 @@ def main(args):
         ligands = parse_ligands(ligand_input)
     else:
         ligands = parse_ligands(args.ligand_file)
-    
-    # total_num_atoms = len(protein.aatype) + ligand.GetNumAtoms()
-    # print(f"Total number of atoms: {total_num_atoms}")
-    # if total_num_atoms > 400:
-    #     warnings.warn("Too many atoms (> 400). May take a long time for sample generation.")
     
     datas = []
     for name, protein, ligand in zip(names,proteins, ligands):
@@ -245,24 +225,8 @@ def main(args):
     )
 
 
-
-    #torch.save(results,"results.pt")
-    positions = [p[0] for p in results] ## (NN)
-    probabilities = [s[1] for s in results] ## (NN)
-    
-    # positions = torch.cat([p[0] for p in results], dim=-1).detach().cpu().numpy()
-    # probabilities = torch.cat(probabilities, dim=0).detach().cpu().numpy() #(NN)
-    
-    
-        
-    # with open(args.output_dir / "sample_sequences.fasta", "w") as f:
-    #     for i, (name, seq_prob) in enumerate(zip(names, probabilities)):
-    #         f.write(">{}_sample_{}\n".format(name,i%args.num_samples))
-    #         sequence = predict_seq(seq_prob.squeeze())
-    #         f.write("{}\n".format(sequence))
-            
-    # Save samples
-    # Repeat samples by num_samples
+    positions = [p[0] for p in results] 
+    probabilities = [s[1] for s in results] 
     proteins, ligands, names =  [protein for protein in proteins for _ in range(args.num_samples)],\
                                 [ligand for ligand in ligands for _ in range(args.num_samples)], \
                                 [name for name in names for _ in range(args.num_samples)]
