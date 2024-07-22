@@ -2,8 +2,6 @@
 
 ![Equivariant-Diffusion](Equivariant-Diffusion.png)
 
-Preprint: https://www.biorxiv.org/content/10.1101/2024.04.17.589997v2.full.pdf
-
 DOI: https://doi.org/10.1101/2024.04.17.589997
 
 Contributors:
