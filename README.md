@@ -1,6 +1,6 @@
 # Complex-based Ligand-Binding Proteins Redesign by Equivariant Diffusion-based Generative Models
 
-![Equivariant-Diffusion](Equivariant-Diffusion.png)
+![Equivariant-Diffusion](ProteinReDiff.png)
 
 DOI: https://doi.org/10.1101/2024.04.17.589997
 
