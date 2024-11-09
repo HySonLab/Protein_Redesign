@@ -2,12 +2,14 @@
 
 ![Equivariant-Diffusion](ProteinReDiff.png)
 
+Published at Structural Dynamics journal (Q1, IF = 2.8) of American Institute of Physics (AIP) Publishing, Volume 11, Issue 6.
+
 DOI: https://doi.org/10.1101/2024.04.17.589997
 
 Contributors:
 * Viet Thanh Duy Nguyen
 * Nhan D. Nguyen 
-* Truong Son Hy (Correspondent / PI) 
+* Truong Son Hy (Corresponding Author / PI) 
 
 **The architecture of the code draws inspiration from DPL (Diffusion model for Protein–Ligand complexes) developed by Nakata, S., Mori, Y. & Tanaka, S. End-to-end protein–ligand complex structure generation with diffusion-based generative models. BMC Bioinformatics 24, 233 (2023). https://doi.org/10.1186/s12859-023-05354-5**
 
