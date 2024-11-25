@@ -4,7 +4,7 @@
 
 Published at Structural Dynamics journal (Q1, IF = 2.8) of American Institute of Physics (AIP) Publishing, Volume 11, Issue 6.
 
-DOI: https://doi.org/10.1101/2024.04.17.589997
+DOI: https://doi.org/10.1063/4.0000271
 
 Contributors:
 * Viet Thanh Duy Nguyen
@@ -189,16 +189,19 @@ This work is primarily based on the following repositories:
 ## Please cite our work as follows
 
 ```bibtex
-@article {Nguyen2024.04.17.589997,
-	author = {Viet Thanh Duy Nguyen and Nhan D. Nguyen and Truong Son Hy},
-	title = {Complex-based Ligand-Binding Proteins Redesign by Equivariant Diffusion-based Generative Models},
-	elocation-id = {2024.04.17.589997},
-	year = {2024},
-	doi = {10.1101/2024.04.17.589997},
-	publisher = {Cold Spring Harbor Laboratory},
-	abstract = {Proteins, serving as the fundamental architects of biological processes, interact with ligands to perform a myriad of functions essential for life. The design and optimization of ligand-binding proteins are pivotal for advancing drug development and enhancing therapeutic efficacy. In this study, we introduce ProteinReDiff, a novel computational framework designed to revolutionize the redesign of ligand-binding proteins. Distinguished by its utilization of Equivariant Diffusion-based Generative Models and advanced computational modules, ProteinReDiff enables the creation of high-affinity ligand-binding proteins without the need for detailed structural information, leveraging instead the potential of initial protein sequences and ligand SMILES strings. Our thorough evaluation across sequence diversity, structural preservation, and ligand binding affinity underscores ProteinReDiff{\textquoteright}s potential to significantly advance computational drug discovery and protein engineering. Our source code is publicly available at https://github.com/HySonLab/Protein_RedesignCompeting Interest StatementThe authors have declared no competing interest.},
-	URL = {https://www.biorxiv.org/content/early/2024/04/20/2024.04.17.589997},
-	eprint = {https://www.biorxiv.org/content/early/2024/04/20/2024.04.17.589997.full.pdf},
-	journal = {bioRxiv}
+@article{10.1063/4.0000271,
+    author = {Nguyen, Viet Thanh Duy and Nguyen, Nhan D. and Hy, Truong Son},
+    title = {ProteinReDiff: Complex-based ligand-binding proteins redesign by equivariant diffusion-based generative models},
+    journal = {Structural Dynamics},
+    volume = {11},
+    number = {6},
+    pages = {064102},
+    year = {2024},
+    month = {11},
+    abstract = {Proteins, serving as the fundamental architects of biological processes, interact with ligands to perform a myriad of functions essential for life. Designing functional ligand-binding proteins is pivotal for advancing drug development and enhancing therapeutic efficacy. In this study, we introduce ProteinReDiff, an diffusion framework targeting the redesign of ligand-binding proteins. Using equivariant diffusion-based generative models, ProteinReDiff enables the creation of high-affinity ligand-binding proteins without the need for detailed structural information, leveraging instead the potential of initial protein sequences and ligand SMILES strings. Our evaluations across sequence diversity, structural preservation, and ligand binding affinity underscore ProteinReDiff's potential to advance computational drug discovery and protein engineering.},
+    issn = {2329-7778},
+    doi = {10.1063/4.0000271},
+    url = {https://doi.org/10.1063/4.0000271},
+    eprint = {https://pubs.aip.org/aca/sdy/article-pdf/doi/10.1063/4.0000271/20264931/064102\_1\_4.0000271.pdf},
 }
 ```
