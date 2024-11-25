@@ -1,4 +1,4 @@
-# Complex-based Ligand-Binding Proteins Redesign by Equivariant Diffusion-based Generative Models
+# ProteinReDiff: Complex-based ligand-binding proteins redesign by equivariant diffusion-based generative models
 
 ![Equivariant-Diffusion](ProteinReDiff.png)
 
